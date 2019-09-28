@@ -6,6 +6,20 @@ import * as R from 'ramda';
 import { TreeView, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
 import '@progress/kendo-react-animation'
 
+const is = (fileName, ext) => new RegExp(`.${ext}\$`).test(fileName);
+function iconClassName({ text, items }) {
+    if (items !== undefined) {
+        return 'k-icon k-i-folder';
+    } else if (is(text, 'pdf')) {
+        return 'k-icon k-i-file-pdf';
+    } else if (is(text, 'html')) {
+        return 'k-icon k-i-html';
+    } else if (is(text, 'jpg|png')) {
+        return 'k-icon k-i-image';
+    } else {
+        return '';
+    }
+}
 const SEPARATOR = '_';
 const tree = [{
     id: 100,
@@ -13,25 +27,25 @@ const tree = [{
     expanded: true,
     isFolder: true,
     items: [
-      { id: 1, text: 'Tables & Chairs' },
-      { id: 2, text: 'Sofas' },
-      { id: 3, text: 'Occasional Furniture' }]
+      { id: 1, text: 'Tables & Chairs.jpg' },
+      { id: 2, text: 'Sofas.pdf' },
+      { id: 3, text: 'Occasional Furniture.gif' }]
   }, {
     id: 101,
     text: 'Decor',
     expanded: true,
     isFolder: true,
     items: [
-      { id: 4, text: 'Bed Linen' },
-      { id: 5, text: 'Curtains & Blinds' },
+      { id: 4, text: 'Bed Linen.pdf' },
+      { id: 5, text: 'Curtains & Blinds.jpg' },
       { 
         id: 102,
         text: 'Carpets',
         expanded: true,
         isFolder: true,
         items:[
-          { id: 6, text: "High Pile" },
-          { id: 7, text: "Low Pile" }
+          { id: 6, text: "High Pile.html" },
+          { id: 7, text: "Low Pile.png" }
         ]
       }
     ]
@@ -59,6 +73,14 @@ const getEventMeta = (event) => {
     return { canDrop: false };
 }
 
+const ItemRenderer = (props) => {
+    return (
+        <>
+            <span className={iconClassName(props.item)} key='0'></span> {props.item.text}
+        </>
+    )
+}
+
 class App extends React.Component{
     dragClue;
     dragOverCnt = 0;
@@ -77,6 +99,7 @@ class App extends React.Component{
                     expandIcons={true}
                     onExpandChange={this.onExpandChange}
                     onItemClick={this.onItemClick}
+                    itemRender={ItemRenderer}
                 />
                 <TreeViewDragClue ref={dragClue => this.dragClue = dragClue} />
             </div>
