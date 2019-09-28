@@ -65,17 +65,19 @@ class App extends React.Component{
     dragOverCnt = 0;
     isDragDrop = false;
 
-    state = { tree, expand: { ids: [], idField: 'text' }, select: { ids: [], idField: 'text' }, updates: {} };
+    state = { tree, updates: {} };
 
     render() {
         return (
             <div>
                 <TreeView
-                    draggable={true} onItemDragOver={this.onItemDragOver} onItemDragEnd={this.onItemDragEnd}
-                    data={processTreeViewItems(
-                        this.state.tree, { expand: this.state.expand, select: this.state.select }
-                    )}
-                    expandIcons={true} onExpandChange={this.onExpandChange} onItemClick={this.onItemClick}
+                    draggable={true}
+                    onItemDragOver={this.onItemDragOver}
+                    onItemDragEnd={this.onItemDragEnd}
+                    data={this.state.tree}
+                    expandIcons={true}
+                    onExpandChange={this.onExpandChange}
+                    onItemClick={this.onItemClick}
                 />
                 <TreeViewDragClue ref={dragClue => this.dragClue = dragClue} />
             </div>
@@ -130,21 +132,12 @@ class App extends React.Component{
     }
     onItemClick = (event) => {
         if (!this.isDragDrop) {
-            let ids = this.state.select.ids.slice();
-            const index = ids.indexOf(event.item.text);
-
-            index === -1 ? ids.push(event.item.text) : ids.splice(index, 1);
-
-            this.setState({ select: { ids, idField: 'text' } });
+            console.log("clicked", event.item);
         }
     }
     onExpandChange = (event) => {
-        let ids = this.state.expand.ids.slice();
-        const index = ids.indexOf(event.item.text);
-
-        index === -1 ? ids.push(event.item.text) : ids.splice(index, 1);
-
-        this.setState({ expand: { ids, idField: 'text' } });
+        event.item.expanded = !event.item.expanded;
+        this.forceUpdate();
     }
 
     getClueClassName(event) {
