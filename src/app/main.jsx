@@ -100,20 +100,8 @@ class App extends React.Component{
         this.isDragDrop = this.dragOverCnt > 0;
         this.dragOverCnt = 0;
         this.dragClue.hide();
-        // const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
-        // // only allowed to move non folder items
-        // if (event.item.isFolder) {
-        //     return;
-        // }
-        // // check to see if drop is within same folder
-        // // TODO: check to see if parseInt is necessary
-        // var itemPathIndexes = event.itemHierarchicalIndex.split(SEPARATOR).map(g => parseInt(g));
-        // var targetPathIndexes = eventAnalyzer.destinationMeta.itemHierarchicalIndex.split("_").map(g => parseInt(g));
-        // const isWithinSameFolder = isSameFolder(itemPathIndexes, targetPathIndexes);
-        // if (!isWithinSameFolder) {
-        //     return;
-        // }
 
+        // get event meta
         const { canDrop, itemPathIndexes, targetPathIndexes } = getEventMeta(event);
 
         if (!canDrop) {
@@ -136,21 +124,13 @@ class App extends React.Component{
                 parentFolderLensPath,
                 // items will be the enitre folder
                 (items) => {
-                    // make a copy of items
-                    const itemsCopy = [...items];
-                    // swap item and target
                     const itemIndex = itemPathIndexes[itemPathIndexes.length - 1];
                     const targetIndex = targetPathIndexes[targetPathIndexes.length - 1];
-                    const itemRef = itemsCopy[itemIndex];
-                    const targetRef = itemsCopy[targetIndex];
-
                     // add to updates list of changes ex: { id: index }
-                    updates[itemRef.id] = targetIndex;
-                    updates[targetRef.id] = itemIndex;
-
-                    itemsCopy[itemIndex] = targetRef;
-                    itemsCopy[targetIndex] = itemRef;
-                    return itemsCopy;
+                    updates[items[itemIndex].id] = targetIndex;
+                    updates[items[targetIndex].id] = itemIndex;
+                    // do move operation
+                    return R.move(itemIndex, targetIndex, items);
                 },
                 this.state.tree
             );
@@ -178,6 +158,7 @@ class App extends React.Component{
     }
 
     getClueClassName(event) {
+        // get event meta
         const { canDrop } = getEventMeta(event);
 
         return canDrop ? 'k-i-plus' : 'k-i-cancel';
