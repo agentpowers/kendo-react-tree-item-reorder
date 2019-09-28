@@ -3,9 +3,8 @@ import ReactDOM from 'react-dom';
 
 import * as R from 'ramda';
 
-import { TreeView, processTreeViewItems, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
+import { TreeView, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
 import '@progress/kendo-react-animation'
-// import { interfaceDeclaration } from '@babel/types';
 
 const SEPARATOR = '_';
 const tree = [{
