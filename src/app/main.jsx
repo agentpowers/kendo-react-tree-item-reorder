@@ -38,16 +38,6 @@ const tree = [{
     ]
 }];
 
-// const isSameFolder = (itemIndexes, targetIndexes) => {
-//     // not need to continue if length is different
-//     if (itemIndexes.length === targetIndexes.length) {
-//         var itemParentFolder = itemIndexes[itemIndexes.length - 2];
-//         var targetParentFolder = targetIndexes[targetIndexes.length - 2];
-//         return itemParentFolder === targetParentFolder;
-//     }
-//     return false;
-// }
-
 const getEventMeta = (event) => {
     if (!event.item.isFolder) {
         const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
