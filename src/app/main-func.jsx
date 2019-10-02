@@ -53,11 +53,21 @@ const tree = [{
 
 const getHierarchicalIndexArray = (hierarchicalIndex) => hierarchicalIndex.split(SEPARATOR).map(g => parseInt(g));
 
-const getHierarchicalTreePath = (hierarchicalIndexArray) => hierarchicalIndexArray.slice(0, hierarchicalIndexArray.length - 1).reduce((acc, curr) => {
+const getHierarchicalTreeItemsPath = (hierarchicalIndexArray) => hierarchicalIndexArray.reduce((acc, curr) => {
     acc.push(curr);
     acc.push("items");
     return acc;
 }, []);
+
+const getHierarchicalTreeFoldersPath = (hierarchicalIndexArray) => hierarchicalIndexArray.reduce((acc, curr, index, orginalArray) => {
+    acc.push(curr);
+    // skip for all but last item
+    if (index !== orginalArray.length - 1) {
+        acc.push("items");
+    }
+    return acc;
+}, []);
+
 
 const getEventMeta = (event) => {
     if (!event.item.isFolder) {
@@ -93,7 +103,7 @@ const App = ({ tree }) => {
     const dragClue = useRef(null);
     const [ dragOverCnt , setDragOverCnt ] = useState(0);
     const [ isDragDrop, setIsDragDrop ] = useState(false);
-    const [ treeState, setTreeState ] = useState({ tree, updates: {} });
+    const [ treeState, setTreeState ] = useState({ tree });
 
     const onItemDragOver = (event) => {
         setDragOverCnt(dragOverCnt + 1);
@@ -112,11 +122,10 @@ const App = ({ tree }) => {
         }
         // Rambda is used here to update the tree
         // take all but last index and add 'items' in between to get a full path to parent folder
-        const parentFolderPath = getHierarchicalTreePath(itemPathIndexes);
+        const parentFolderPath = getHierarchicalTreeItemsPath(itemPathIndexes.slice(0, itemPathIndexes.length - 1));
         // create a lensPath to parent folder
         const parentFolderLensPath = R.lensPath(parentFolderPath);
 
-        const updates = {};
         // update tree using R.over
         const updatedTree = 
             R.over(
@@ -125,9 +134,6 @@ const App = ({ tree }) => {
                 (items) => {
                     const itemIndex = itemPathIndexes[itemPathIndexes.length - 1];
                     const targetIndex = targetPathIndexes[targetPathIndexes.length - 1];
-                    // add to updates list of changes ex: { id: index }
-                    updates[items[itemIndex].id] = targetIndex;
-                    updates[items[targetIndex].id] = itemIndex;
                     // do move operation
                     return R.move(itemIndex, targetIndex, items);
                 },
@@ -135,7 +141,7 @@ const App = ({ tree }) => {
             );
 
         // update state
-        setTreeState({ tree: updatedTree, updates: {...treeState.updates, ...updates } });
+        setTreeState({ tree: updatedTree });
     }
     const onItemClick = (event) => {
         if (!isDragDrop) {
@@ -143,16 +149,18 @@ const App = ({ tree }) => {
         }
     }
     const onExpandChange = (event) => {
-        let itemPath = getHierarchicalIndexArray(event.itemHierarchicalIndex);
-        // add expanded to itemPath
-        itemPath.push("expanded");
+        debugger;
+        const itemPathIndexes = getHierarchicalIndexArray(event.itemHierarchicalIndex);
+        let treePath = getHierarchicalTreeFoldersPath(itemPathIndexes);
+        // add expanded to treePath
+        treePath.push("expanded");
         const updatedTree = 
             R.set(
-                R.lensPath(itemPath),
+                R.lensPath(treePath),
                 !event.item.expanded,
                 treeState.tree
             );
-        setTreeState({ ...treeState, tree: updatedTree });
+        setTreeState({ tree: updatedTree });
     }
     const getClueClassName = (event) => {
         // get event meta
