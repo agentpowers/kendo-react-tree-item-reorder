@@ -1,9 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-import * as R from 'ramda';
-
-import { TreeView, processTreeViewItems, handleTreeViewCheckChange, moveTreeViewItem, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
+import { TreeView, processTreeViewItems, moveTreeViewItem, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
 import '@progress/kendo-react-animation'
 
 function getSiblings(itemIndex, data) {
@@ -15,6 +13,17 @@ function getSiblings(itemIndex, data) {
     }
 
     return result;
+}
+
+function getTargetItem(itemIndex, data) {
+    let result = data;
+
+    const indices = itemIndex.split(SEPARATOR).map(index => Number(index));
+    for (let i = 0; i < indices.length - 1; i++) {
+        result = result[indices[i]].items;
+    }
+
+    return result[indices[indices.length - 1]];
 }
 
 const SEPARATOR = '_';
@@ -45,28 +54,13 @@ const tree = [{
     ]
 }];
 
-const getHierarchicalIndexArray = (hierarchicalIndex) => hierarchicalIndex.split(SEPARATOR).map(g => parseInt(g));
-
-const getHierarchicalTreeFoldersPath = (hierarchicalIndexArray) => hierarchicalIndexArray.reduce((acc, curr, index, orginalArray) => {
-    acc.push(curr);
-    // skip for all but last item
-    if (index !== orginalArray.length - 1) {
-        acc.push("items");
-    }
-    return acc;
-}, []);
-
 const getEventMeta = (event, tree) => {
     const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
     const itemHierarchicalIndex = event.itemHierarchicalIndex;
     const { itemHierarchicalIndex: targetHierarchicalIndex } = eventAnalyzer.destinationMeta;
     // must not be same
     if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex) {
-        console.log(`itemHierarchicalIndex: ${itemHierarchicalIndex}, targetHierarchicalIndex: ${targetHierarchicalIndex}`);
-        const targetPathIndexes = getHierarchicalIndexArray(eventAnalyzer.destinationMeta.itemHierarchicalIndex);
-        const targetItemPath = getHierarchicalTreeFoldersPath(targetPathIndexes);
-        const parentFolderLensPath = R.lensPath(targetItemPath);
-        const targetItem = R.view(parentFolderLensPath, tree);
+        const targetItem = getTargetItem(eventAnalyzer.destinationMeta.itemHierarchicalIndex, tree);
         return { canDrop: event.item.isFolder === targetItem.isFolder, eventAnalyzer };
     }
     return { canDrop: false };
