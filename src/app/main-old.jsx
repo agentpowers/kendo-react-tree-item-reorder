@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
+import * as R from 'ramda';
+
 import { TreeView, processTreeViewItems, handleTreeViewCheckChange, moveTreeViewItem, TreeViewDragAnalyzer, TreeViewDragClue } from '@progress/kendo-react-treeview'
 import '@progress/kendo-react-animation'
 
@@ -43,6 +45,33 @@ const tree = [{
     ]
 }];
 
+const getHierarchicalIndexArray = (hierarchicalIndex) => hierarchicalIndex.split(SEPARATOR).map(g => parseInt(g));
+
+const getHierarchicalTreeFoldersPath = (hierarchicalIndexArray) => hierarchicalIndexArray.reduce((acc, curr, index, orginalArray) => {
+    acc.push(curr);
+    // skip for all but last item
+    if (index !== orginalArray.length - 1) {
+        acc.push("items");
+    }
+    return acc;
+}, []);
+
+const getEventMeta = (event, tree) => {
+    const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
+    const itemHierarchicalIndex = event.itemHierarchicalIndex;
+    const { itemHierarchicalIndex: targetHierarchicalIndex } = eventAnalyzer.destinationMeta;
+    // must not be same
+    if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex) {
+        console.log(`itemHierarchicalIndex: ${itemHierarchicalIndex}, targetHierarchicalIndex: ${targetHierarchicalIndex}`);
+        const targetPathIndexes = getHierarchicalIndexArray(eventAnalyzer.destinationMeta.itemHierarchicalIndex);
+        const targetItemPath = getHierarchicalTreeFoldersPath(targetPathIndexes);
+        const parentFolderLensPath = R.lensPath(targetItemPath);
+        const targetItem = R.view(parentFolderLensPath, tree);
+        return { canDrop: event.item.isFolder === targetItem.isFolder, eventAnalyzer };
+    }
+    return { canDrop: false };
+}
+
 class App extends React.Component{
     dragClue;
     dragOverCnt = 0;
@@ -67,23 +96,26 @@ class App extends React.Component{
 
     onItemDragOver = (event) => {
         this.dragOverCnt++;
-        this.dragClue.show(event.pageY + 10, event.pageX, event.item.text, this.getClueClassName(event));
+        this.dragClue.show(event.pageY + 10, event.pageX, event.item.text, this.getClueClassName(event, this.state.tree));
     }
     onItemDragEnd = (event) => {
         this.isDragDrop = this.dragOverCnt > 0;
         this.dragOverCnt = 0;
         this.dragClue.hide();
 
-        const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
-        if (eventAnalyzer.isDropAllowed) {
-            const updatedTree = moveTreeViewItem(
-                event.itemHierarchicalIndex,
-                this.state.tree,
-                eventAnalyzer.getDropOperation(),
-                eventAnalyzer.destinationMeta.itemHierarchicalIndex,
-            );
+        const { canDrop, eventAnalyzer } = getEventMeta(event, this.state.tree);
+        if (canDrop) {
+            const op = eventAnalyzer.getDropOperation();
+            if (op !== "child") {
+                const updatedTree = moveTreeViewItem(
+                    event.itemHierarchicalIndex,
+                    this.state.tree,
+                    op,
+                    eventAnalyzer.destinationMeta.itemHierarchicalIndex,
+                );
 
-            this.setState({ tree: updatedTree });
+                this.setState({ tree: updatedTree });
+            }
         }
     }
     onItemClick = (event) => {
@@ -105,14 +137,12 @@ class App extends React.Component{
         this.setState({ expand: { ids, idField: 'text' } });
     }
 
-    getClueClassName(event) {
-        const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
-        const { itemHierarchicalIndex: itemIndex } = eventAnalyzer.destinationMeta;
+    getClueClassName(event, tree) {
+        const { canDrop, eventAnalyzer } = getEventMeta(event, tree);
 
-        if (eventAnalyzer.isDropAllowed) {
+        if (canDrop) {
+            const { itemHierarchicalIndex: itemIndex } = eventAnalyzer.destinationMeta;
             switch (eventAnalyzer.getDropOperation()) {
-                case 'child':
-                    return 'k-i-plus';
                 case 'before':
                     return itemIndex === '0' || itemIndex.endsWith(`${SEPARATOR}0`) ?
                         'k-i-insert-up' : 'k-i-insert-middle';
@@ -121,6 +151,7 @@ class App extends React.Component{
                     const lastIndex = Number(itemIndex.split(SEPARATOR).pop());
 
                     return lastIndex < siblings.length - 1 ? 'k-i-insert-middle' : 'k-i-insert-down';
+                case 'child':
                 default:
                     break;
             }

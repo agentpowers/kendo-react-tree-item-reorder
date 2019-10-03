@@ -1,1 +1,1 @@
-import "./app/main-func"
+import "./app/main-old"
