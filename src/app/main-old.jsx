@@ -99,17 +99,16 @@ class App extends React.Component{
 
         const { canDrop, eventAnalyzer } = getEventMeta(event, this.state.tree);
         if (canDrop) {
-            const op = eventAnalyzer.getDropOperation();
-            if (op !== "child") {
-                const updatedTree = moveTreeViewItem(
-                    event.itemHierarchicalIndex,
-                    this.state.tree,
-                    op,
-                    eventAnalyzer.destinationMeta.itemHierarchicalIndex,
-                );
+            const dropOp = eventAnalyzer.getDropOperation();
+            const updatedTree = moveTreeViewItem(
+                event.itemHierarchicalIndex,
+                this.state.tree,
+                // we don't need child operations - forcing child to an "after"
+                dropOp === "child" ? "after" : dropOp,
+                eventAnalyzer.destinationMeta.itemHierarchicalIndex,
+            );
 
-                this.setState({ tree: updatedTree });
-            }
+            this.setState({ tree: updatedTree });
         }
     }
     onItemClick = (event) => {
@@ -140,12 +139,12 @@ class App extends React.Component{
                 case 'before':
                     return itemIndex === '0' || itemIndex.endsWith(`${SEPARATOR}0`) ?
                         'k-i-insert-up' : 'k-i-insert-middle';
+                case 'child':
                 case 'after':
                     const siblings = getSiblings(itemIndex, this.state.tree);
                     const lastIndex = Number(itemIndex.split(SEPARATOR).pop());
 
                     return lastIndex < siblings.length - 1 ? 'k-i-insert-middle' : 'k-i-insert-down';
-                case 'child':
                 default:
                     break;
             }
