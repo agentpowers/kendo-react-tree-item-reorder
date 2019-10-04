@@ -90,7 +90,7 @@ const getTargetItem = (itemIndex, data) => {
     return result[indices[indices.length - 1]];
 };
 
-const moveFilesInSameFolder = (tree, itemHierarchicalIndex, targetHierarchicalIndex) => {
+const moveItemsInSameFolder = (tree, itemHierarchicalIndex, targetHierarchicalIndex) => {
     let changes = [];
     // Rambda is used here to update the tree
     const itemPathIndexes = getHierarchicalIndexArray(itemHierarchicalIndex);
@@ -109,8 +109,13 @@ const moveFilesInSameFolder = (tree, itemHierarchicalIndex, targetHierarchicalIn
             const targetIndex = targetPathIndexes[targetPathIndexes.length - 1];
             // do move operation
             const updated = R.move(itemIndex, targetIndex, items);
+            const isFolder = items[itemIndex].isFolder;
+            // for debugging
+            const originalDisplayOrder = items.reduce((acc, curr, index) => ({ ...acc, [curr.id] : index }), {});
             // record changes
-            changes = updated.filter(d => !d.isFolder).map((d, index) => ({ type: "file-display-order-change", id: d.id, value: index }));
+            changes = isFolder
+                ? updated.filter(d => d.isFolder).map((d, index) => ({ type: "folder-display-order-change", id: d.id, value: index, original: originalDisplayOrder[d.id] }))
+                : updated.filter(d => !d.isFolder).map((d, index) => ({ type: "file-display-order-change", id: d.id, value: index, original: originalDisplayOrder[d.id] }));
             return updated;
         },
         tree
@@ -132,6 +137,9 @@ const getEventMeta = (event, tree) => {
     return { canDrop: false };
 }
 
+const folderMoveWithinFolder = "folder-move-within-folder";
+const fileMoveWithinFolder = "file-move-within-folder";
+
 const getEventMeta2 = (event, tree) => {
     const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
     const itemHierarchicalIndex = event.itemHierarchicalIndex;
@@ -141,14 +149,14 @@ const getEventMeta2 = (event, tree) => {
         let operationType = null;
         const targetItem = getTargetItem(eventAnalyzer.destinationMeta.itemHierarchicalIndex, tree);
         const canDrop = (event.item.isFolder === targetItem.isFolder) || (event.item.isFolder);
-        // moving files
-        if (!event.item.isFolder && !targetItem.isFolder) {
-            // is moving with same folder
+        // moving files or folders
+        if (event.item.isFolder === targetItem.isFolder) {
+            // is moving within same folder
             // has same length
             if (itemHierarchicalIndex.length === targetHierarchicalIndex.length){
-                // check to see if item in root OR parent folder is ame
+                // check to see if item in root OR parent folder is same
                 if (itemHierarchicalIndex.length === 1 || (itemHierarchicalIndex.slice(0, itemHierarchicalIndex.length - 2) === targetHierarchicalIndex.slice(0, targetHierarchicalIndex.length - 2))) {
-                    operationType = "file-move-same-folder";
+                    operationType = targetItem.isFolder ? folderMoveWithinFolder : fileMoveWithinFolder;
                 }
             }
         }
@@ -205,8 +213,8 @@ const App = ({ tree }) => {
 
         const { canDrop, eventAnalyzer, operationType, itemHierarchicalIndex, targetHierarchicalIndex } = getEventMeta2(event, treeState.tree);
         if (canDrop) {
-            if (operationType === "file-move-same-folder") {
-                const { updatedTree, changes } = moveFilesInSameFolder(treeState.tree, itemHierarchicalIndex, targetHierarchicalIndex);
+            if (operationType === fileMoveWithinFolder || operationType === folderMoveWithinFolder) {
+                const { updatedTree, changes } = moveItemsInSameFolder(treeState.tree, itemHierarchicalIndex, targetHierarchicalIndex);
                 console.log(changes);
                 // update state
                 setTreeState({ tree: updatedTree }); 
