@@ -97,8 +97,8 @@ const getEventMeta = (event, tree) => {
     // must not be same
     if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex) {
         const targetItem = getTargetItem(eventAnalyzer.destinationMeta.itemHierarchicalIndex, tree);
-        const canDrop = (event.item.isFolder === targetItem.isFolder) || (event.item.isFolder);
-        return { canDrop, eventAnalyzer };
+        const canDrop = true; //(event.item.isFolder === targetItem.isFolder) || (event.item.isFolder);
+        return { canDrop, eventAnalyzer, targetItem, targetHierarchicalIndex, itemHierarchicalIndex };
     }
     return { canDrop: false };
 }
@@ -109,10 +109,11 @@ const getClueClassName = (event, tree) => {
     if (canDrop) {
         const { itemHierarchicalIndex: itemIndex } = eventAnalyzer.destinationMeta;
         switch (eventAnalyzer.getDropOperation()) {
+            case 'child':
+                return 'k-i-plus';
             case 'before':
                 return itemIndex === '0' || itemIndex.endsWith(`${SEPARATOR}0`) ?
                     'k-i-insert-up' : 'k-i-insert-middle';
-            case 'child':
             case 'after':
                 const siblings = getSiblings(itemIndex, tree);
                 const lastIndex = Number(itemIndex.split(SEPARATOR).pop());
@@ -134,6 +135,17 @@ const ItemRenderer = (props) => {
     )
 }
 
+const getDiff = (a, b) => {
+    const changes = [];
+    if (a === b) {
+        return changes;
+    } else {
+        if (Array.isArray(a)) {
+            return null;
+        }
+    }
+};
+
 const App = ({ tree }) => {
     const dragClue = useRef(null);
     const [ dragOverCnt , setDragOverCnt ] = useState(0);
@@ -149,15 +161,17 @@ const App = ({ tree }) => {
         setDragOverCnt(0);
         dragClue.current.hide();
 
-        const { canDrop, eventAnalyzer } = getEventMeta(event, treeState.tree);
+        const { canDrop, eventAnalyzer, targetItem, itemHierarchicalIndex, targetHierarchicalIndex } = getEventMeta(event, treeState.tree);
         if (canDrop) {
-            const dropOp = eventAnalyzer.getDropOperation();
+            debugger;
+            const originalDropOp = eventAnalyzer.getDropOperation();
+            // we don't need child operations on files- forcing child to an "after"
+            const dropOp = (originalDropOp === "child"  && targetItem.isFolder) ? originalDropOp : "after";
             const updatedTree = moveTreeViewItem(
-                event.itemHierarchicalIndex,
+                itemHierarchicalIndex,
                 treeState.tree,
-                // we don't need child operations - forcing child to an "after"
-                dropOp === "child" ? "after" : dropOp,
-                eventAnalyzer.destinationMeta.itemHierarchicalIndex,
+                dropOp,
+                targetHierarchicalIndex,
             );
             // update state
             setTreeState({ tree: updatedTree });

@@ -128,10 +128,30 @@ const removeItem = (tree, index) => {
 
     return { updatedTree, changes };
 };
+const getIndexAdjustedForRemoval = (index, removedAtIndex) => {
+    // create a new array here to so we don't mutate index(which is returned from a memoized function)
+    const indexArray = [ ...getHierarchicalIndexArray(index)];
+    const removedAtIndexArray = getHierarchicalIndexArray(removedAtIndex);
+    for (let i = 0; i < Math.min(indexArray.length, removedAtIndexArray.length); i++) {
+        if(removedAtIndexArray[i] > indexArray[i]) {
+            break;
+        }
+        if (indexArray[i] === removedAtIndexArray[i]) {
+            continue;
+        }
+        indexArray[i] -= (removedAtIndexArray[i] || 1);
+    }
 
-const addItem = (tree, item, index) => {
+    return indexArray;
+};
+const addItem = (tree, item, targetItem, index, removedAtIndex) => {
     let changes = [];
-    const itemPathIndexes = getHierarchicalIndexArray(index);
+    debugger;
+    const adjustedIndex = item.isFolder ? getIndexAdjustedForRemoval(index,removedAtIndex).join('_') : index;
+    console.log('removedAtIndex', removedAtIndex);
+    console.log('targetIndex', index);
+    console.log('adjustedTargetIndex', adjustedIndex);
+    const itemPathIndexes = getHierarchicalIndexArray(adjustedIndex);
     // take all but last index and add 'items' in between to get a full path to parent folder
     const parentFolderPath = getParentFolderPath(itemPathIndexes.slice(0, itemPathIndexes.length - 1));
     // create a lensPath to parent folder
@@ -141,10 +161,12 @@ const addItem = (tree, item, index) => {
     const updatedTree = R.over(
         parentFolderLensPath,
         (folder) => {
-            const items = folder.items;
+            debugger;
+            const isRoot = itemPathIndexes.length === 1;
+            // if root then folder itself is items else folder.items
+            const items = isRoot ? folder : folder.items; 
             const itemIndex = itemPathIndexes[itemPathIndexes.length - 1];
             const isFolder = item.isFolder;
-            const targetItem = getTargetItem(index, tree);
             // for debugging
             const originalDisplayOrder = items.reduce((acc, curr, index) => ({ ...acc, [curr.id] : index }), {});
             // add item
@@ -168,10 +190,13 @@ const addItem = (tree, item, index) => {
                                 original: originalDisplayOrder[d.id]
                             })))
             ];
-            return {
-                ...folder,
-                items: updated
-            };
+            // if root then return updated itself else return a shallow copied folder
+            return isRoot
+                ? updated
+                : {
+                    ...folder,
+                    items: updated
+                };
         },
         tree
     );
@@ -220,48 +245,18 @@ const moveItemsInSameFolder = (tree, itemHierarchicalIndex, targetHierarchicalIn
     return { updatedTree, changes };
 };
 
-
-
 const getEventMeta = (event, tree) => {
     const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
     const itemHierarchicalIndex = event.itemHierarchicalIndex;
     const { itemHierarchicalIndex: targetHierarchicalIndex } = eventAnalyzer.destinationMeta;
     // must not be same
-    if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex) {
+    if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex && !targetHierarchicalIndex.startsWith(itemHierarchicalIndex)) {
         const targetItem = getTargetItem(eventAnalyzer.destinationMeta.itemHierarchicalIndex, tree);
         const canDrop = (event.item.isFolder === targetItem.isFolder) || (event.item.isFolder);
         return { canDrop, eventAnalyzer, targetItem, itemHierarchicalIndex, targetHierarchicalIndex };
     }
     return { canDrop: false };
 }
-
-// const folderMoveWithinFolder = "folder-move-within-folder";
-// const fileMoveWithinFolder = "file-move-within-folder";
-
-// const getEventMeta2 = (event, tree) => {
-//     const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
-//     const itemHierarchicalIndex = event.itemHierarchicalIndex;
-//     const { itemHierarchicalIndex: targetHierarchicalIndex } = eventAnalyzer.destinationMeta;
-//     // must not be same
-//     if (targetHierarchicalIndex && itemHierarchicalIndex !== targetHierarchicalIndex) {
-//         let operationType = null;
-//         const targetItem = getTargetItem(eventAnalyzer.destinationMeta.itemHierarchicalIndex, tree);
-//         const canDrop = (event.item.isFolder === targetItem.isFolder) || (event.item.isFolder);
-//         // moving files or folders
-//         if (event.item.isFolder === targetItem.isFolder) {
-//             // is moving within same folder
-//             // has same length
-//             if (itemHierarchicalIndex.length === targetHierarchicalIndex.length){
-//                 // check to see if item in root OR parent folder is same
-//                 if (itemHierarchicalIndex.length === 1 || (itemHierarchicalIndex.slice(0, itemHierarchicalIndex.length - 2) === targetHierarchicalIndex.slice(0, targetHierarchicalIndex.length - 2))) {
-//                     operationType = targetItem.isFolder ? folderMoveWithinFolder : fileMoveWithinFolder;
-//                 }
-//             }
-//         }
-//         return { canDrop, eventAnalyzer, targetItem, itemHierarchicalIndex, targetHierarchicalIndex, operationType };
-//     }
-//     return { canDrop: false };
-// }
 
 const getClueClassName = (event, tree) => {
     const { canDrop, eventAnalyzer } = getEventMeta(event, tree);
@@ -325,25 +320,14 @@ const App = ({ tree }) => {
                     }
                 }
             }
+            // get original target item from current tree
+            const originalTarget = getTargetItem(targetHierarchicalIndex, treeState.tree);
             // remove item 
             const { updatedTree, changes : removedChanges } = removeItem(treeState.tree, itemHierarchicalIndex);
-            console.log(removedChanges);
             // add item
-            const { updatedTree: finalTree, changes: addChanges } = addItem(updatedTree, event.item, targetHierarchicalIndex);
-            console.log(addChanges);
+            const { updatedTree: finalTree, changes: addChanges } = addItem(updatedTree, event.item, originalTarget, targetHierarchicalIndex, itemHierarchicalIndex);
             // set state
             setTreeState({ tree: finalTree });
-            
-            // const dropOp = eventAnalyzer.getDropOperation();
-            // const updatedTree = moveTreeViewItem(
-            //     event.itemHierarchicalIndex,
-            //     treeState.tree,
-            //     // we don't need child operations - forcing child to an "after"
-            //     dropOp === "child" ? "after" : dropOp,
-            //     eventAnalyzer.destinationMeta.itemHierarchicalIndex,
-            // );
-            // // update state
-            // setTreeState({ tree: updatedTree }); 
         }
     }
     const onItemClick = (event) => {

@@ -1,1 +1,1 @@
-import "./app/main-func-events"
+import "./app/main-func"

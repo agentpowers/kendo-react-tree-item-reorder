@@ -38,6 +38,7 @@ import '@progress/kendo-react-animation'
             const eventAnalyzer = new TreeViewDragAnalyzer(event).init();
 
             if (eventAnalyzer.isDropAllowed) {
+                debugger;
                 const updatedTree = moveTreeViewItem(
                     event.itemHierarchicalIndex,
                     this.state.tree,
