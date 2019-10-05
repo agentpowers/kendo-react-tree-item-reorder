@@ -169,7 +169,7 @@ const rootFlatten = (item, index) => {
     return result;
 };
 
-const getDiff2 = (original, updated) => {
+const getDiff = (original, updated) => {
     let changed = [];
     let added = [];
     let deleted = [];
@@ -243,91 +243,6 @@ const getDiff2 = (original, updated) => {
     return { changed, added, deleted };
 }
 
-const getDiff = (original, updated, parentId) => {
-    let changes = {};
-    let added = {};
-    let deleted = {};
-    if (updated == null && Array.isArray(original)) {
-        for (let index = 0; index < original.length; index++) {
-            const orginalItem = original[index];
-            deleted[orginalItem.id] = {
-                type: orginalItem.isFolder ? "folder-deleted" : "file-deleted",
-                id: orginalItem.id,
-                value: null
-            };
-
-            if (orginalItem.isFolder) {
-                const { changes : c, added : a, deleted : d } = getDiff(orginalItem.items, null, orginalItem.id);
-                changes = {
-                    ...changes,
-                    ...c
-                };
-                added = {
-                    ...added,
-                    ...a
-                };
-                deleted = {
-                    ...deleted,
-                    ...d
-                };
-            }
-        }
-    }
-    if (Array.isArray(updated)) {
-        const originalIdMap = original ? original.reduce((acc, curr) => {
-            acc[curr._id] = true;
-            return acc;
-        }, {}) : {};
-        for (let index = 0; index < updated.length; index++) {
-            const updItm = updated[index];
-            const hasOriginalId = originalIdMap[updItm._id];
-            const hasOriginalAtSameIndex = original && (original.length > index) && (original[index].id === updated[index].id);
-
-            if (!hasOriginalAtSameIndex) {
-                // add display order change
-                changes[updItm._id] = {
-                    type: updItm.isFolder ? "folder-display-order-change" : "file-display-order-change",
-                    id: updItm.id,
-                    value: index
-                };
-            }
-
-            // if new item then add it
-            if (hasOriginalId){
-                delete originalIdMap[updItm._id]
-            } else {
-                added[updItm.id] = {
-                    type: updItm.isFolder ? "folder-added" : "file-added",
-                    id: updItm.id,
-                    value: parentId
-                };
-            }
-            if (updItm.isFolder) {
-                const { changes : c, added : a, deleted : d } = getDiff(hasOriginalAtSameIndex ? original[index].items : null, updItm.items, updItm.id);
-                changes = {
-                    ...changes,
-                    ...c
-                };
-                added = {
-                    ...added,
-                    ...a
-                };
-                deleted = {
-                    ...deleted,
-                    ...d
-                };
-            }
-        }
-        // if there are leftover in originalIdMap then they are deleted
-        deleted = Object.values(originalIdMap).map(item => ({
-            type: item.isFolder ? "folder-deleted" : "file-deleted",
-            id: item.id,
-            value: null
-        }));
-    }
-    return { changes, added, deleted };
-};
-
 const App = ({ tree }) => {
     const dragClue = useRef(null);
     const [ dragOverCnt , setDragOverCnt ] = useState(0);
@@ -354,7 +269,7 @@ const App = ({ tree }) => {
                 dropOp,
                 targetHierarchicalIndex,
             );
-            const diff = getDiff2(treeState.tree, updatedTree);
+            const diff = getDiff(treeState.tree, updatedTree);
             console.log(diff);
             // update state
             setTreeState({ tree: updatedTree });
